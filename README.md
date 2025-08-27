@@ -1,4 +1,4 @@
-offline bingo game powerd by Abbisniya soft
+step by step build new app 
 
-# yeneBingoMobile
-# yeneBingoMobile
+git tag v1.0.1
+git push origin v1.0.1
