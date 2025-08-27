@@ -67,9 +67,8 @@ class _VersionCheckWrapperState extends State<VersionCheckWrapper> {
     final currentVersion = packageInfo.version;
 
     // GitHub latest release API
-   final githubApiUrl =
-    'https://api.github.com/repos/yared098/yeneBingoMobile/releases/latest';
-
+    const githubApiUrl =
+        'https://api.github.com/repos/yared098/yeneBingoMobile/releases/latest';
 
     try {
       final response = await http.get(Uri.parse(githubApiUrl));
@@ -77,7 +76,23 @@ class _VersionCheckWrapperState extends State<VersionCheckWrapper> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final latestVersion = data['tag_name'] as String; // e.g., "v1.2.0"
-        final releaseUrl = data['html_url'] as String; // GitHub release URL
+
+        // Look for APK asset in release
+        String? apkUrl;
+        if (data['assets'] != null) {
+          final assets = data['assets'] as List<dynamic>;
+          final apkAsset = assets.firstWhere(
+            (a) => (a['name'] as String).endsWith('.apk'),
+            orElse: () => {},
+          );
+          if (apkAsset is Map<String, dynamic>) {
+            apkUrl = apkAsset['browser_download_url'] as String?;
+          }
+        }
+
+        // fallback: release page
+        final releaseUrl =
+            apkUrl ?? data['html_url'] as String; // GitHub release URL
 
         if (_isNewerVersion(latestVersion, currentVersion)) {
           _showUpdateDialog(latestVersion, releaseUrl);
@@ -122,11 +137,9 @@ class _VersionCheckWrapperState extends State<VersionCheckWrapper> {
         actions: [
           TextButton(
             onPressed: () async {
-              if (await canLaunchUrl(Uri.parse(updateUrl))) {
-                await launchUrl(
-                  Uri.parse(updateUrl),
-                  mode: LaunchMode.externalApplication,
-                );
+              final uri = Uri.parse(updateUrl);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
               }
             },
             child: const Text('Update Now'),
