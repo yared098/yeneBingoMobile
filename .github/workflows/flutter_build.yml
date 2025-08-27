@@ -1,0 +1,64 @@
+name: Flutter Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'   # Runs only when you push a tag like v1.0.0, v1.2.3
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout repository
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      # Setup Flutter
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'  # use your Flutter version
+
+      # Install dependencies
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Build Android APK
+      - name: Build APK
+        run: flutter build apk --release
+
+      # Build Android App Bundle (for Play Store)
+      - name: Build AAB
+        run: flutter build appbundle --release
+
+      # Upload artifacts (so you can download from Actions tab)
+      - name: Upload APK & AAB
+        uses: actions/upload-artifact@v3
+        with:
+          name: yeneBingoMobile-builds
+          path: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/bundle/release/app-release.aab
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: yeneBingoMobile-builds
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/bundle/release/app-release.aab
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
