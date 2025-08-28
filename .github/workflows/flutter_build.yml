@@ -10,57 +10,26 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      # Checkout repository
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # Setup Flutter
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
-          # flutter-version: '3.22.0'  # use your Flutter version
-          flutter-version: '3.35.2'  # Updated to support Dart 3.8.1
+          flutter-version: '3.35.2'
 
-      # Install dependencies
-      - name: Install dependencies
-        run: flutter pub get
+      - run: flutter pub get
 
-      # Build Android APK
       - name: Build APK
         run: flutter build apk --release
 
-      # Build Android App Bundle (for Play Store)
       - name: Build AAB
         run: flutter build appbundle --release
-
-      # Upload artifacts (so you can download from Actions tab)
-      - name: Upload APK & AAB
-        uses: actions/upload-artifact@v4
-        with:
-          name: yeneBingoMobile-builds
-          path: |
-            build/app/outputs/flutter-apk/app-release.apk
-            build/app/outputs/bundle/release/app-release.aab
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download Build Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: yeneBingoMobile-builds
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            yeneBingoMobile-builds/app-release.apk#yeneBingo-${{ github.ref_name }}.apk
-            yeneBingoMobile-builds/app-release.aab#yeneBingo-${{ github.ref_name }}.aab
+            build/app/outputs/flutter-apk/app-release.apk#yeneBingo-${{ github.ref_name }}.apk
+            build/app/outputs/bundle/release/app-release.aab#yeneBingo-${{ github.ref_name }}.aab
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
