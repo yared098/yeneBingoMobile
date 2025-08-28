@@ -45,23 +45,23 @@ jobs:
             build/app/outputs/bundle/release/app-release.aab
 
   release:
-    needs: build
-    runs-on: ubuntu-latest
+  needs: build
+  runs-on: ubuntu-latest
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v4
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    - name: Download Build Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: yeneBingoMobile-builds
+        path: artifacts
 
-      - name: Download Build Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: yeneBingoMobile-builds
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            artifacts/app-release.apk#yeneBingo-${{ github.ref_name }}.apk
-            artifacts/app-release.aab#yeneBingo-${{ github.ref_name }}.aab
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          artifacts/app-release.apk#yeneBingo-${{ github.ref_name }}.apk
+          artifacts/app-release.aab#yeneBingo-${{ github.ref_name }}.aab
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
