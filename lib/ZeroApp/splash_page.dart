@@ -93,13 +93,18 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                         ],
                       ),
-                      child: Image.asset(
-                        'assets/images/logo.png',
-                        width: 130,
-                        height: 130,
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/images/logo.png',
+                          width: 130,
+                          height: 130,
+                          fit: BoxFit
+                              .cover, // ensures the image fills the circle
+                        ),
                       ),
                     ),
                   ),
+
                   const SizedBox(height: 20),
                   FadeTransition(
                     opacity: _fadeAnimation,

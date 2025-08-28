@@ -88,16 +88,7 @@ class _BingoPageState extends State<BingoPage> {
     });
   }
 
-  void _toggleMark(int cardIndex, int row, int col) {
-    final key = "$row-$col";
-    setState(() {
-      if (_markedList[cardIndex].contains(key)) {
-        _markedList[cardIndex].remove(key);
-      } else {
-        _markedList[cardIndex].add(key);
-      }
-    });
-  }
+  
 
   Widget _buildCardNumbers() {
     return Row(

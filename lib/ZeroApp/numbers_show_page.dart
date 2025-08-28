@@ -69,7 +69,7 @@ class _NumbersPageState extends State<NumbersPage> {
           IconButton(
             onPressed: _goToPatternChoose,
             icon: const Icon(Icons.grid_view),
-            tooltip: "Choose Pattern",
+            tooltip: "Choose Patterns",
           ),
         ],
       ),
