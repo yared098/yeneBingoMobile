@@ -257,7 +257,7 @@ class _NumbersPageState extends State<NumbersPage> {
                     ),
                     child: Center(
                       child: Text(
-                        "Go to Player Page (${_selectedNumbers.length} selected)",
+                        "Go to Player Page (${_selectedNumbers.length} selected) numbers",
                         style: TextStyle(
                           fontSize: 16, // smaller text
                           fontWeight: FontWeight.bold,
