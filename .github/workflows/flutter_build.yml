@@ -4,7 +4,9 @@ on:
   push:
     tags:
       - 'v*'   # Runs only when you push a tag like v1.0.0, v1.2.3
-
+permissions:
+  contents: write   # Needed for GitHub Release
+  
 jobs:
   build:
     runs-on: ubuntu-latest
