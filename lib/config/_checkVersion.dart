@@ -1,92 +1,145 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class GithubVersionCheck extends StatefulWidget {
-  const GithubVersionCheck({super.key});
+class UpdateService {
+  static const String repoOwner = "yared098";
+  static const String repoName = "yeneBingoMobile";
 
-  @override
-  State<GithubVersionCheck> createState() => _GithubVersionCheckState();
-}
+  static Future<void> checkForUpdate(BuildContext context) async {
+    try {
+      debugPrint("🌐 Checking GitHub releases...");
 
-class _GithubVersionCheckState extends State<GithubVersionCheck> {
-  @override
-  void initState() {
-    super.initState();
-    _checkGithubVersion();
-  }
+      final response = await http.get(
+        Uri.parse(
+          "https://api.github.com/repos/$repoOwner/$repoName/releases/latest",
+        ),
+      );
 
-  Future<void> _checkGithubVersion() async {
-    final packageInfo = await PackageInfo.fromPlatform();
-    final currentVersion = packageInfo.version;
+      debugPrint("🌐 GitHub API response: ${response.statusCode}");
 
-    // Replace with your GitHub repo
-    final githubApiUrl =
-        'https://api.github.com/repos/yourusername/yourrepo/releases/latest';
+      if (response.statusCode != 200) return;
 
-    final response = await http.get(Uri.parse(githubApiUrl));
+      final json = jsonDecode(response.body);
+      final latestVersion = json['tag_name'];
+      final assets = json['assets'] as List;
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      final latestVersion = data['tag_name'] as String; // e.g., "v1.2.0"
-      final releaseUrl = data['html_url'] as String;
+      debugPrint("✅ Latest GitHub version: $latestVersion");
+      debugPrint("📦 Found ${assets.length} assets in release");
+
+      String? apkUrl;
+      for (var asset in assets) {
+        if (asset['name'].endsWith('.apk')) {
+          apkUrl = asset['browser_download_url'];
+          break;
+        }
+      }
+
+      if (apkUrl == null) {
+        debugPrint("⚠️ No .apk asset found in release");
+        apkUrl = json['html_url']; // fallback → release page
+      }
+
+      final packageInfo = await PackageInfo.fromPlatform();
+      final currentVersion = "v${packageInfo.version}";
+
+      debugPrint(
+        "🔍 Comparing versions → latest: $latestVersion vs current: $currentVersion",
+      );
 
       if (_isNewerVersion(latestVersion, currentVersion)) {
-        _showUpdateDialog(latestVersion, releaseUrl);
+        debugPrint("🚨 Update required → showing update dialog");
+        _showUpdateDialog(context, latestVersion, apkUrl!);
+      } else {
+        debugPrint("✅ App is up to date");
       }
+    } catch (e) {
+      debugPrint("❌ Error checking update: $e");
     }
   }
 
-  bool _isNewerVersion(String latest, String current) {
-    // Remove "v" prefix if present
-    latest = latest.replaceFirst('v', '');
-    final latestParts = latest.split('.').map(int.parse).toList();
-    final currentParts = current.split('.').map(int.parse).toList();
+  static bool _isNewerVersion(String latest, String current) {
+    List<int> latestParts = latest
+        .replaceAll("v", "")
+        .split(".")
+        .map(int.parse)
+        .toList();
+    List<int> currentParts = current
+        .replaceAll("v", "")
+        .split(".")
+        .map(int.parse)
+        .toList();
 
     for (int i = 0; i < latestParts.length; i++) {
-      if (i >= currentParts.length || latestParts[i] > currentParts[i]) {
-        return true;
-      } else if (latestParts[i] < currentParts[i]) {
-        return false;
-      }
+      if (i >= currentParts.length) return true;
+      if (latestParts[i] > currentParts[i]) return true;
+      if (latestParts[i] < currentParts[i]) return false;
     }
     return false;
   }
 
-  void _showUpdateDialog(String latestVersion, String updateUrl) {
+  static void _showUpdateDialog(
+    BuildContext context,
+    String latestVersion,
+    String apkUrl,
+  ) {
+    bool isDirectApk = apkUrl.endsWith(".apk");
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Update Available'),
+        title: const Text("Update Available 🚀"),
         content: Text(
-          'A new version ($latestVersion) is available. Please update to continue.',
+          "A new version ($latestVersion) is available. Please update.",
         ),
         actions: [
           TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Later"),
+          ),
+          TextButton(
             onPressed: () async {
-              if (await canLaunchUrl(Uri.parse(updateUrl))) {
-                await launchUrl(
-                  Uri.parse(updateUrl),
-                  mode: LaunchMode.externalApplication,
-                );
+              Navigator.pop(context);
+              if (isDirectApk) {
+                await _downloadAndInstallApk(apkUrl);
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Could not launch update URL')),
-                );
+                await _launchURL(apkUrl); // open release page if no APK
               }
             },
-            child: const Text('Update Now'),
+            child: Text(isDirectApk ? "Download & Install" : "Go to Release"),
           ),
         ],
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox(); // Or your main widget tree
+  static Future<void> _downloadAndInstallApk(String apkUrl) async {
+    try {
+      debugPrint("⬇️ Downloading APK: $apkUrl");
+      final response = await http.get(Uri.parse(apkUrl));
+      final dir = await getTemporaryDirectory();
+      final file = File("${dir.path}/update.apk");
+      await file.writeAsBytes(response.bodyBytes);
+
+      debugPrint("✅ APK downloaded: ${file.path}");
+
+      // Open installer
+      await Process.run("pm", ["install", "-r", file.path]);
+    } catch (e) {
+      debugPrint("❌ Error installing APK: $e");
+    }
+  }
+
+  static Future<void> _launchURL(String url) async {
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } else {
+      debugPrint("❌ Could not launch $url");
+    }
   }
 }
