@@ -1,7 +1,10 @@
 import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:offlinebingo/ZeroApp/splash_page.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -125,29 +128,51 @@ class _VersionCheckWrapperState extends State<VersionCheckWrapper> {
     return false;
   }
 
-  void _showUpdateDialog(String latestVersion, String updateUrl) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Update Available'),
-        content: Text(
-          'A new version ($latestVersion) is available. Please update to continue.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              final uri = Uri.parse(updateUrl);
-              if (await canLaunchUrl(uri)) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              }
-            },
-            child: const Text('Update Now'),
-          ),
-        ],
+ void _showUpdateDialog(String latestVersion, String apkUrl) {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => AlertDialog(
+      title: const Text('Update Available'),
+      content: Text(
+        'A new version ($latestVersion) is available. Download and install now?',
       ),
+      actions: [
+        TextButton(
+          onPressed: () async {
+            Navigator.of(context).pop();
+            await _downloadAndInstallApk(apkUrl);
+          },
+          child: const Text('Download & Install'),
+        ),
+      ],
+    ),
+  );
+}
+
+Future<void> _downloadAndInstallApk(String apkUrl) async {
+  try {
+    final dir = await getTemporaryDirectory();
+    final filePath = "${dir.path}/update.apk";
+
+    // Download APK
+    final dio = Dio();
+    await dio.download(
+      apkUrl,
+      filePath,
+      onReceiveProgress: (received, total) {
+        if (total != -1) {
+          debugPrint("Download progress: ${(received / total * 100).toStringAsFixed(0)}%");
+        }
+      },
     );
+
+    // Open APK (this will trigger installer)
+    await OpenFilex.open(filePath);
+  } catch (e) {
+    debugPrint("❌ Failed to download or install APK: $e");
   }
+}
 
   @override
   Widget build(BuildContext context) {

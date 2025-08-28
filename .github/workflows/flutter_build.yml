@@ -6,7 +6,7 @@ on:
       - 'v*'   # Runs only when you push a tag like v1.0.0, v1.2.3
 permissions:
   contents: write   # Needed for GitHub Release
-  
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -61,7 +61,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            build/app/outputs/flutter-apk/app-release.apk
-            build/app/outputs/bundle/release/app-release.aab
+            artifacts/app-release.apk#yeneBingo-${{ github.ref_name }}.apk
+            artifacts/app-release.aab#yeneBingo-${{ github.ref_name }}.aab
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
