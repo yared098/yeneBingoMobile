@@ -111,7 +111,7 @@ class UpdateService {
                 await _launchURL(apkUrl); // open release page if no APK
               }
             },
-            child: Text(isDirectApk ? "Download & Install" : "Go to Release new"),
+            child: Text(isDirectApk ? "Download & Install" : "Go to Release new one"),
           ),
         ],
       ),

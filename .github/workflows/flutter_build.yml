@@ -54,8 +54,8 @@ jobs:
 
       - name: Rename artifacts for release
         run: |
-          mv artifacts/build/app/outputs/flutter-apk/app-release.apk artifacts/offlinebingo-${GITHUB_REF_NAME}.apk
-          mv artifacts/build/app/outputs/bundle/release/app-release.aab artifacts/offlinebingo-${GITHUB_REF_NAME}.aab
+          mv artifacts/app-release.apk artifacts/offlinebingo-${{ github.ref_name }}.apk
+          mv artifacts/app-release.aab artifacts/offlinebingo-${{ github.ref_name }}.aab
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
