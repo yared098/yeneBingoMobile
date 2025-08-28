@@ -151,25 +151,47 @@ class _VersionCheckWrapperState extends State<VersionCheckWrapper> {
 }
 
 Future<void> _downloadAndInstallApk(String apkUrl) async {
-  try {
-    final dir = await getTemporaryDirectory();
-    final filePath = "${dir.path}/update.apk";
+  double progress = 0;
 
-    // Download APK
-    final dio = Dio();
+  final dir = await getTemporaryDirectory();
+  final filePath = "${dir.path}/update.apk";
+  final dio = Dio();
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) => AlertDialog(
+        title: const Text("Downloading Update"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            LinearProgressIndicator(value: progress),
+            const SizedBox(height: 10),
+            Text("${(progress * 100).toStringAsFixed(0)}%"),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  try {
     await dio.download(
       apkUrl,
       filePath,
       onReceiveProgress: (received, total) {
         if (total != -1) {
-          debugPrint("Download progress: ${(received / total * 100).toStringAsFixed(0)}%");
+          progress = received / total;
+          // Update UI
+          (context as Element).markNeedsBuild();
         }
       },
     );
 
-    // Open APK (this will trigger installer)
-    await OpenFilex.open(filePath);
+    Navigator.of(context).pop(); // close progress dialog
+    await OpenFilex.open(filePath); // open APK installer
   } catch (e) {
+    Navigator.of(context).pop(); // close progress dialog
     debugPrint("❌ Failed to download or install APK: $e");
   }
 }
