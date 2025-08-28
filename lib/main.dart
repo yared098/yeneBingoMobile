@@ -151,27 +151,32 @@ class _VersionCheckWrapperState extends State<VersionCheckWrapper> {
 }
 
 Future<void> _downloadAndInstallApk(String apkUrl) async {
-  double progress = 0;
-
   final dir = await getTemporaryDirectory();
   final filePath = "${dir.path}/update.apk";
   final dio = Dio();
 
+  double progress = 0;
+
+  // Create a StatefulBuilder dialog first
+  late StateSetter dialogSetState;
   showDialog(
     context: context,
     barrierDismissible: false,
     builder: (context) => StatefulBuilder(
-      builder: (context, setState) => AlertDialog(
-        title: const Text("Downloading Update"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            LinearProgressIndicator(value: progress),
-            const SizedBox(height: 10),
-            Text("${(progress * 100).toStringAsFixed(0)}%"),
-          ],
-        ),
-      ),
+      builder: (context, setState) {
+        dialogSetState = setState; // save reference
+        return AlertDialog(
+          title: const Text("Downloading Update"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              LinearProgressIndicator(value: progress),
+              const SizedBox(height: 10),
+              Text("${(progress * 100).toStringAsFixed(0)}%"),
+            ],
+          ),
+        );
+      },
     ),
   );
 
@@ -181,17 +186,17 @@ Future<void> _downloadAndInstallApk(String apkUrl) async {
       filePath,
       onReceiveProgress: (received, total) {
         if (total != -1) {
-          progress = received / total;
-          // Update UI
-          (context as Element).markNeedsBuild();
+          dialogSetState(() {
+            progress = received / total;
+          });
         }
       },
     );
 
-    Navigator.of(context).pop(); // close progress dialog
-    await OpenFilex.open(filePath); // open APK installer
+    Navigator.of(context).pop(); // close dialog
+    await OpenFilex.open(filePath); // open installer
   } catch (e) {
-    Navigator.of(context).pop(); // close progress dialog
+    Navigator.of(context).pop();
     debugPrint("❌ Failed to download or install APK: $e");
   }
 }
