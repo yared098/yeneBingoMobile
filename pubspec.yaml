@@ -5,7 +5,7 @@ description: "A new Flutter project."
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
 
-version: 1.0.0+4
+version: 1.0.0+6
 
 environment:
   sdk: ^3.8.1
@@ -29,6 +29,7 @@ dependencies:
   dio: ^5.9.0
   path_provider: ^2.1.5
   open_filex: ^4.7.0
+  flutter_launcher_icons: ^0.14.4
 
 dev_dependencies:
   flutter_test:
@@ -39,7 +40,10 @@ dev_dependencies:
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
-
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/logo.png"   # your logo path
 # The following section is specific to Flutter packages.
 flutter:
 
