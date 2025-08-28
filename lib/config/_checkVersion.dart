@@ -50,7 +50,6 @@ class UpdateService {
       debugPrint(
         "🔍 Comparing versions → latest: $latestVersion vs current: $currentVersion",
       );
-
       if (_isNewerVersion(latestVersion, currentVersion)) {
         debugPrint("🚨 Update required → showing update dialog");
         _showUpdateDialog(context, latestVersion, apkUrl!);
@@ -62,23 +61,31 @@ class UpdateService {
     }
   }
 
+  /// Compares semantic versions, ignoring build metadata (+6)
   static bool _isNewerVersion(String latest, String current) {
-    List<int> latestParts = latest
-        .replaceAll("v", "")
-        .split(".")
-        .map(int.parse)
-        .toList();
-    List<int> currentParts = current
-        .replaceAll("v", "")
-        .split(".")
-        .map(int.parse)
-        .toList();
+    // Remove leading 'v'
+    latest = latest.replaceAll('v', '');
+    current = current.replaceAll('v', '');
 
+    // Split into semantic version and build number
+    List<String> latestSplit = latest.split('+');
+    List<String> currentSplit = current.split('+');
+
+    List<int> latestParts = latestSplit[0].split('.').map(int.parse).toList();
+    List<int> currentParts = currentSplit[0].split('.').map(int.parse).toList();
+
+    int latestBuild = latestSplit.length > 1 ? int.parse(latestSplit[1]) : 0;
+    int currentBuild = currentSplit.length > 1 ? int.parse(currentSplit[1]) : 0;
+
+    // Compare semantic version parts
     for (int i = 0; i < latestParts.length; i++) {
       if (i >= currentParts.length) return true;
       if (latestParts[i] > currentParts[i]) return true;
       if (latestParts[i] < currentParts[i]) return false;
     }
+
+    // Semantic versions are equal, compare build numbers
+    if (latestBuild > currentBuild) return true;
     return false;
   }
 
@@ -111,7 +118,7 @@ class UpdateService {
                 await _launchURL(apkUrl); // open release page if no APK
               }
             },
-            child: Text(isDirectApk ? "Download & Install" : "Go to Release new one"),
+            child: Text(isDirectApk ? "Download & Install" : "Go to Release"),
           ),
         ],
       ),
