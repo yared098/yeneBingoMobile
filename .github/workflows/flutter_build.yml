@@ -4,32 +4,79 @@ on:
   push:
     tags:
       - 'v*'   # Runs only when you push a tag like v1.0.0, v1.2.3
+
 permissions:
   contents: write   # Needed for GitHub Release
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    outputs:
+      apk-path: ${{ steps.build-apk.outputs.apk-path }}
+      aab-path: ${{ steps.build-aab.outputs.aab-path }}
 
-      - uses: subosito/flutter-action@v2
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.35.2'
 
-      - run: flutter pub get
+      - name: Install dependencies
+        run: flutter pub get
 
       - name: Build APK
-        run: flutter build apk --release
+        id: build-apk
+        run: |
+          flutter build apk --release
+          echo "::set-output name=apk-path::build/app/outputs/flutter-apk/app-release.apk"
 
       - name: Build AAB
-        run: flutter build appbundle --release
+        id: build-aab
+        run: |
+          flutter build appbundle --release
+          echo "::set-output name=aab-path::build/app/outputs/bundle/release/app-release.aab"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: yeneBingoMobile-builds
+          path: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/bundle/release/app-release.aab
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: yeneBingoMobile-builds
+
+      - name: List downloaded files
+        run: |
+          echo "Listing artifact contents:"
+          ls -R yeneBingoMobile-builds
+
+      - name: Prepare files for release
+        run: |
+          mkdir -p release
+          cp yeneBingoMobile-builds/**/app-release.apk release/
+          cp yeneBingoMobile-builds/**/app-release.aab release/
+          echo "Release folder contents:"
+          ls -R release
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            build/app/outputs/flutter-apk/app-release.apk#yeneBingo-${{ github.ref_name }}.apk
-            build/app/outputs/bundle/release/app-release.aab#yeneBingo-${{ github.ref_name }}.aab
+            release/app-release.apk#yeneBingo-${{ github.ref_name }}.apk
+            release/app-release.aab#yeneBingo-${{ github.ref_name }}.aab
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
