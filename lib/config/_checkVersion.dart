@@ -16,7 +16,7 @@ class UpdateService {
 
       final response = await http.get(
         Uri.parse(
-          "https://api.github.com/repos/$repoOwner/$repoName/releases/latest",
+          "https://api.github.com/repos/yared098/yeneBingoMobile/releases/latest",
         ),
       );
 

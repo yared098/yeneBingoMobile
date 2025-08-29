@@ -3,7 +3,8 @@ name: Flutter Build & Release
 on:
   push:
     tags:
-      - 'v*'   # Runs only when you push a tag like v1.0.0, v1.2.3
+      - 'v*'   # Trigger on version tags like v1.0.0+7
+
 permissions:
   contents: write   # Needed for GitHub Release
 
@@ -20,8 +21,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          # flutter-version: '3.22.0'  # use your Flutter version
-          flutter-version: '3.35.2'  # Updated to support Dart 3.8.1
+          flutter-version: '3.35.2'  # Dart 3.8.1 compatible
 
       # Install dependencies
       - name: Install dependencies
@@ -31,36 +31,16 @@ jobs:
       - name: Build APK
         run: flutter build apk --release
 
-      # Build Android App Bundle (for Play Store)
+      # Build Android App Bundle (AAB)
       - name: Build AAB
         run: flutter build appbundle --release
 
-      # Upload artifacts (so you can download from Actions tab)
-      - name: Upload APK & AAB
-        uses: actions/upload-artifact@v4
-        with:
-          name: yeneBingoMobile-builds
-          path: |
-            build/app/outputs/flutter-apk/app-release.apk
-            build/app/outputs/bundle/release/app-release.aab
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download Build Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: yeneBingoMobile-builds
-
+      # Create GitHub Release and Upload APK + AAB
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            yeneBingoMobile-builds/app-release.apk#yeneBingo-${{ github.ref_name }}.apk
-            yeneBingoMobile-builds/app-release.aab#yeneBingo-${{ github.ref_name }}.aab
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/bundle/release/app-release.aab
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
