@@ -16,7 +16,7 @@ class UpdateService {
 
       final response = await http.get(
         Uri.parse(
-          "https://api.github.com/repos/yared098/yeneBingoMobile/releases/latest",
+          "https://api.github.com/repos/$repoOwner/$repoName/releases/latest",
         ),
       );
 
@@ -45,11 +45,13 @@ class UpdateService {
       }
 
       final packageInfo = await PackageInfo.fromPlatform();
-      final currentVersion = "v${packageInfo.version}";
+      final currentVersion =
+          "v${packageInfo.version}+${packageInfo.buildNumber}";
 
       debugPrint(
         "🔍 Comparing versions → latest: $latestVersion vs current: $currentVersion",
       );
+
       if (_isNewerVersion(latestVersion, currentVersion)) {
         debugPrint("🚨 Update required → showing update dialog");
         _showUpdateDialog(context, latestVersion, apkUrl!);
@@ -61,32 +63,42 @@ class UpdateService {
     }
   }
 
-  /// Compares semantic versions, ignoring build metadata (+6)
+  /// Compare semantic version + build
   static bool _isNewerVersion(String latest, String current) {
-    // Remove leading 'v'
     latest = latest.replaceAll('v', '');
     current = current.replaceAll('v', '');
 
-    // Split into semantic version and build number
     List<String> latestSplit = latest.split('+');
     List<String> currentSplit = current.split('+');
 
-    List<int> latestParts = latestSplit[0].split('.').map(int.parse).toList();
-    List<int> currentParts = currentSplit[0].split('.').map(int.parse).toList();
+    List<int> latestParts = latestSplit[0]
+        .split('.')
+        .map((e) => int.tryParse(e) ?? 0)
+        .toList();
+    List<int> currentParts = currentSplit[0]
+        .split('.')
+        .map((e) => int.tryParse(e) ?? 0)
+        .toList();
 
-    int latestBuild = latestSplit.length > 1 ? int.parse(latestSplit[1]) : 0;
-    int currentBuild = currentSplit.length > 1 ? int.parse(currentSplit[1]) : 0;
+    int latestBuild = latestSplit.length > 1
+        ? int.tryParse(latestSplit[1]) ?? 0
+        : 0;
+    int currentBuild = currentSplit.length > 1
+        ? int.tryParse(currentSplit[1]) ?? 0
+        : 0;
 
-    // Compare semantic version parts
-    for (int i = 0; i < latestParts.length; i++) {
-      if (i >= currentParts.length) return true;
-      if (latestParts[i] > currentParts[i]) return true;
-      if (latestParts[i] < currentParts[i]) return false;
+    int maxLen = latestParts.length > currentParts.length
+        ? latestParts.length
+        : currentParts.length;
+    for (int i = 0; i < maxLen; i++) {
+      int l = (i < latestParts.length) ? latestParts[i] : 0;
+      int c = (i < currentParts.length) ? currentParts[i] : 0;
+
+      if (l > c) return true;
+      if (l < c) return false;
     }
 
-    // Semantic versions are equal, compare build numbers
-    if (latestBuild > currentBuild) return true;
-    return false;
+    return latestBuild > currentBuild;
   }
 
   static void _showUpdateDialog(
@@ -113,9 +125,9 @@ class UpdateService {
             onPressed: () async {
               Navigator.pop(context);
               if (isDirectApk) {
-                await _downloadAndInstallApk(apkUrl);
+                await _downloadAndInstallApk(context, apkUrl);
               } else {
-                await _launchURL(apkUrl); // open release page if no APK
+                await _launchURL(apkUrl);
               }
             },
             child: Text(isDirectApk ? "Download & Install" : "Go to Release"),
@@ -125,17 +137,88 @@ class UpdateService {
     );
   }
 
-  static Future<void> _downloadAndInstallApk(String apkUrl) async {
+  /// Download with progress
+  static Future<void> _downloadAndInstallApk(
+    BuildContext context,
+    String apkUrl,
+  ) async {
     try {
       debugPrint("⬇️ Downloading APK: $apkUrl");
-      final response = await http.get(Uri.parse(apkUrl));
+
+      final request = await HttpClient().getUrl(Uri.parse(apkUrl));
+      final response = await request.close();
+
+      final contentLength = response.contentLength;
+      int bytesReceived = 0;
+
       final dir = await getTemporaryDirectory();
       final file = File("${dir.path}/update.apk");
-      await file.writeAsBytes(response.bodyBytes);
+      final raf = file.openSync(mode: FileMode.write);
+
+      // Show progress dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return StatefulBuilder(
+            builder: (context, setState) {
+              double progress =
+                  bytesReceived / (contentLength == -1 ? 1 : contentLength);
+
+              return AlertDialog(
+                title: const Text("Downloading Update..."),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    LinearProgressIndicator(value: progress),
+                    const SizedBox(height: 10),
+                    Text("${(progress * 100).toStringAsFixed(0)}%"),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      );
+
+      // Listen for chunks
+      await for (var data in response) {
+        raf.writeFromSync(data);
+        bytesReceived += data.length;
+
+        // Update UI
+        if (context.mounted) {
+          Navigator.of(context).pop(); // close old
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) {
+              double progress =
+                  bytesReceived / (contentLength == -1 ? 1 : contentLength);
+              return AlertDialog(
+                title: const Text("Downloading Update..."),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    LinearProgressIndicator(value: progress),
+                    const SizedBox(height: 10),
+                    Text("${(progress * 100).toStringAsFixed(0)}%"),
+                  ],
+                ),
+              );
+            },
+          );
+        }
+      }
+
+      await raf.close();
+
+      // Close progress dialog
+      if (context.mounted) Navigator.of(context).pop();
 
       debugPrint("✅ APK downloaded: ${file.path}");
 
-      // Open installer
+      // Open installer (NOTE: pm install won't work without root; use Intent instead in production)
       await Process.run("pm", ["install", "-r", file.path]);
     } catch (e) {
       debugPrint("❌ Error installing APK: $e");
@@ -143,8 +226,9 @@ class UpdateService {
   }
 
   static Future<void> _launchURL(String url) async {
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       debugPrint("❌ Could not launch $url");
     }
