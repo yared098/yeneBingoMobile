@@ -136,7 +136,7 @@ class _SplashScreenState extends State<SplashScreen>
                 child: FadeTransition(
                   opacity: _fadeAnimation,
                   child: const Text(
-                    "Need Help? Call: +251 926564627",
+                    "Need Help? Call: +251 926564627 call now ",
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
